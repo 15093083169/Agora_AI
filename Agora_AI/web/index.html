@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>声网对话式AI引擎演示</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-active {
+            background-color: #28a745;
+        }
+        .status-inactive {
+            background-color: #dc3545;
+        }
+        .debug-panel {
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- <h1 class="text-center mb-4">声网对话式AI引擎 - 简化版</h1> -->
+        
+        <!-- 调试窗口切换按钮 -->
+        <!-- <div class="text-end mb-3">
+            <button class="btn btn-outline-secondary btn-sm" onclick="toggleDebugSection()">
+                🔍 调试窗口
+            </button>
+        </div> -->
+        
+        <div class="row justify-content-center">
+            <div class="col-md-6" id="mainContent">
+                <div class="card mb-4">
+                    <div class="card">
+                    <div class="card-header">
+                            <h5>配置参数</h5>
+                    </div>
+                    <div class="card-body">
+                                                    <form id="configForm">
+                            <!-- 智能体RTC UID是固定值，隐藏输入框但保留值 -->
+                            <input type="hidden" id="agentRtcUid" value="26444">
+                            
+                            <!-- 声网Token折叠卡片 -->
+                            <div class="accordion mb-3" id="agoraTokenAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="agoraTokenHeader">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#agoraTokenCollapse" aria-expanded="false" aria-controls="agoraTokenCollapse">
+                                            声网Token
+                                        </button>
+                                    </h2>
+                                    <div id="agoraTokenCollapse" class="accordion-collapse collapse" aria-labelledby="agoraTokenHeader" data-bs-parent="#agoraTokenAccordion">
+                                        <div class="accordion-body">
+                        <div class="mb-3">
+                                                <label class="form-label">Token获取方式</label>
+                                                <div>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="agoraTokenType" id="agoraTokenTypeTemp" value="temp" checked>
+                                                        <label class="form-check-label" for="agoraTokenTypeTemp">临时Token</label>
+                        </div>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="radio" name="agoraTokenType" id="agoraTokenTypeApi" value="api">
+                                                        <label class="form-check-label" for="agoraTokenTypeApi">后端获取Token</label>
+                        </div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3" id="agoraTokenInputBox">
+                                                <label for="agoraToken" class="form-label">临时Token</label>
+                                                <input type="text" class="form-control" id="agoraToken" placeholder="请输入临时Token">
+                                                <div class="form-text">获取地址：https://console.shengwang.cn/overview</div>
+                                            </div>
+                                            <div class="mb-3" id="agoraChannelNameBox">
+                                                <label for="channelName" class="form-label">频道名称</label>
+                                                <input type="text" class="form-control" id="channelName" placeholder="请输入频道名称">
+                                                <div class="form-text">频道名称需与生成Token时一致</div>
+                                            </div>
+                                            <div class="mb-3" id="agoraTokenUrlBox" style="display:none;">
+                                                <label for="agoraTokenUrl" class="form-label">Token获取地址</label>
+                                                <input type="text" class="form-control" id="agoraTokenUrl" value="http://localhost:8081/rtcToken" placeholder="请输入Token获取接口地址">
+                                                <div class="form-text">部署后端token服务后输入</div>
+                                            </div>
+                                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                                <!-- LLM配置 -->
+                                <div class="accordion mb-3" id="llmAccordion">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="llmHeader">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#llmCollapse" aria-expanded="false" aria-controls="llmCollapse">
+                                                LLM (大模型) 配置
+                                            </button>
+                                        </h2>
+                                        <div id="llmCollapse" class="accordion-collapse collapse" aria-labelledby="llmHeader" data-bs-parent="#llmAccordion">
+                                            <div class="accordion-body">
+                        <div class="mb-3">
+                                                    <label for="llmUrl" class="form-label">API地址 <span class="text-danger" >*</span></label>
+                                                    <input type="text" class="form-control" id="llmUrl" value="https://ark.cn-beijing.volces.com/api/v3/chat/completions">
+                    </div>
+                        <div class="mb-3">
+                                                    <label for="llmApiKey" class="form-label">API密钥 <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="llmApiKey">
+                        </div>
+                                                <div class="mb-3">
+                                                    <label for="llmModel" class="form-label">模型名称 <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="llmModel">
+                        </div>
+                                                <div class="mb-3">
+                                                    <label for="llmPrompt" class="form-label">系统提示词</label>
+                                                    <textarea class="form-control" id="llmPrompt" rows="3"></textarea>
+                            </div>
+                                                <div class="mb-3">
+                                                    <label for="llmGreeting" class="form-label">问候语</label>
+                                                    <input type="text" class="form-control" id="llmGreeting">
+                                                </div>
+                                                <!-- <div class="mb-3">
+                                                    <label for="llmMaxToken" class="form-label">最大Token数</label>
+                                                    <input type="number" class="form-control" id="llmMaxToken" value="10240">
+                                                </div> -->
+                                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                                <!-- VAD配置 -->
+                                <div class="accordion mb-3" id="vadAccordion">
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="vadHeader">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vadCollapse" aria-expanded="false" aria-controls="vadCollapse">
+                                                VAD (语音活动检测) 配置
+                                            </button>
+                                        </h2>
+                                        <div id="vadCollapse" class="accordion-collapse collapse" aria-labelledby="vadHeader" data-bs-parent="#vadAccordion">
+                                            <div class="accordion-body">
+                                                                                            <div class="mb-3">
+                                                <label for="vadInterruptDuration" class="form-label">
+                                                    人声持续阈值 (ms)
+                                                    <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="持续检测到人声信号的最小时间长度，人声持续时长超过该数值时视为有声输入，避免误打断。取值120-1200"></i>
+                                                </label>
+                                                <input type="number" class="form-control" id="vadInterruptDuration" value="220">
+                    </div>
+                        <div class="mb-3">
+                                                <label for="vadPrefixPadding" class="form-label">
+                                                    前缀填充阈值 (ms)
+                                                    <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="开始新的语音片段所需的最短语音持续时间，避免非常短的声音触发语音活动检测。取值0-5000"></i>
+                                                </label>
+                                                <input type="number" class="form-control" id="vadPrefixPadding" value="460">
+                        </div>
+                                            <div class="mb-3">
+                                                <label for="vadSilenceDuration" class="form-label">
+                                                    静音持续阈值 (ms)
+                                                    <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="语音结束时的最短静音持续时间，确保短暂的停顿不会过早结束语音片段。取值0-2000"></i>
+                                                </label>
+                                                <input type="number" class="form-control" id="vadSilenceDuration" value="190">
+                        </div>
+                                            <div class="mb-3">
+                                                <label for="vadThreshold" class="form-label">
+                                                    灵敏度
+                                                    <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="ai识别人声的灵敏度，越低越灵敏，取值0-1"></i>
+                                                </label>
+                                                <input type="number" class="form-control" id="vadThreshold" value="0.15" step="0.01" min="0" max="1">
+                                            </div>
+                                                <div class="mb-3">
+                                           
+                                                        <input class="form-check-input" type="checkbox" id="vadEnableAivad" checked>
+                                                        <label class="form-check-label" for="vadEnableAivad">
+                                                            启用优雅打断
+                                                            <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="启用后，会允许用户说话时，打断ai说话"></i>
+                                                        </label>
+                                                    </div>
+                                                
+                                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                                                            <!-- TTS配置 -->
+                            <div class="accordion mb-3" id="ttsAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="ttsHeader">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ttsCollapse" aria-expanded="false" aria-controls="ttsCollapse">
+                                            TTS (语音合成) 配置
+                                        </button>
+                                    </h2>
+                                    <div id="ttsCollapse" class="accordion-collapse collapse" aria-labelledby="ttsHeader" data-bs-parent="#ttsAccordion">
+                                        <div class="accordion-body">
+                                            <div class="mb-3">
+                                                <label for="ttsVendor" class="form-label">服务商 <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="ttsVendor">
+                                                    <option value="bytedance">火山引擎</option>
+                                                    <option value="tencent">腾讯云</option>
+                                                </select>
+                    </div>
+                                            
+                                            <!-- 火山引擎配置 -->
+                                            <div id="ttsBytedanceConfig">
+                            <div class="mb-3">
+                                                    <label for="ttsToken" class="form-label" >AccessToken<span class="text-danger">*</span></label>
+                                                    <div class="form-text">获取地址：https://console.volcengine.com/speech/</div>
+                                                    <input type="text" class="form-control" id="ttsToken">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsAppId" class="form-label">APPID <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="ttsAppId">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsCluster" class="form-label">ClusterID</label>
+                                                    <input type="text" class="form-control" id="ttsCluster" value="volcano_tts">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsVoiceType" class="form-label">voice_type</label>
+                                                    <input type="text" class="form-control" id="ttsVoiceType" value="zh_female_shuangkuaisisi_moon_bigtts">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsSpeedRatio" class="form-label">语速比例</label>
+                                                    <input type="number" class="form-control" id="ttsSpeedRatio" value="1.2" step="0.1" min="0.1" max="5">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsVolumeRatio" class="form-label">音量比例</label>
+                                                    <input type="number" class="form-control" id="ttsVolumeRatio" value="1" step="0.1" min="0.1" max="5">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsPitchRatio" class="form-label">音调比例</label>
+                                                    <input type="number" class="form-control" id="ttsPitchRatio" value="1" step="0.1" min="0.1" max="5">
+                            </div>
+                                            </div>
+                                            
+                                            <!-- 腾讯云配置 -->
+                                            <div id="ttsTencentConfig" style="display: none;">
+                            <div class="mb-3">
+                                                    <label for="ttsTencentAppId" class="form-label">APPID <span class="text-danger">*</span></label>
+                                                    <div class="form-text">获取地址：https://console.cloud.tencent.com/cam/capi</div>
+                                                    <input type="text" class="form-control" id="ttsTencentAppId">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsTencentSecretId" class="form-label">SecretId <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="ttsTencentSecretId">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsTencentSecretKey" class="form-label">SecretKey <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="ttsTencentSecretKey">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsTencentVoiceType" class="form-label">音色 ID</label>
+                                                    <input type="number" class="form-control" id="ttsTencentVoiceType" value="601005">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsTencentSpeed" class="form-label">语速</label>
+                                                    <input type="number" class="form-control" id="ttsTencentSpeed" value="1.25" step="0.1" min="0.1" max="5">
+                            </div>
+                            <div class="mb-3">
+                                                    <label for="ttsTencentVolume" class="form-label">音量</label>
+                                                    <input type="number" class="form-control" id="ttsTencentVolume" value="5" min="0" max="20">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="ttsTencentEmotionCategory" class="form-label">情感类别</label>
+                                                    <select class="form-select" id="ttsTencentEmotionCategory">
+                                                        <option value="happy">开心</option>
+                                                        <option value="sad">悲伤</option>
+                                                        <option value="angry">愤怒</option>
+                                                        <option value="fear">恐惧</option>
+                                                        <option value="disgust">厌恶</option>
+                                                        <option value="surprise">惊讶</option>
+                                                        <option value="neutral">中性</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="ttsTencentEmotionIntensity" class="form-label">情感强度</label>
+                                                    <input type="number" class="form-control" id="ttsTencentEmotionIntensity" value="100" min="0" max="100">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+    
+                                <div class="d-grid">
+                                    <button type="button" class="btn btn-primary" id="saveConfigBtn">保存配置</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                    <div class="card-header">
+                        <h5>智能体控制</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <span class="status-indicator" id="agentStatusIndicator"></span>
+                            <span id="agentStatusText">未创建</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>智能体ID: </strong><span id="agentId">未创建</span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" id="createAgentBtn">创建智能体</button>
+                            <button class="btn btn-danger" id="stopAgentBtn" disabled>停止智能体</button>
+                    </div>
+                </div>
+            </div>
+            
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>音频交互</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <span class="status-indicator" id="audioStatusIndicator"></span>
+                            <span id="audioStatusText">未连接</span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="startAudioBtn" disabled>开始对话</button>
+                            <button class="btn btn-secondary" id="stopAudioBtn" disabled>结束对话</button>
+                        </div>
+                        <div class="mt-3">
+                            <div class="progress">
+                                <div id="volumeIndicator" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <small class="text-muted">音量指示器</small>
+                        </div>
+                    </div>
+                </div>
+
+              
+            </div>
+            
+            <div class="col-md-6" id="debugSection" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>日志面板</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="debug-panel" id="debugPanel"></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>请求/响应详情</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="detailsTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="request-tab" data-bs-toggle="tab" data-bs-target="#request" type="button" role="tab">请求</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="response-tab" data-bs-toggle="tab" data-bs-target="#response" type="button" role="tab">响应</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mt-2" id="detailsTabContent">
+                            <div class="tab-pane fade show active" id="request" role="tabpanel">
+                                <pre id="requestContent">尚未发送请求</pre>
+                            </div>
+                            <div class="tab-pane fade" id="response" role="tabpanel">
+                                <pre id="responseContent">尚未收到响应</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let agentId = null;
+            let config = {};
+            
+            // 从服务器注入的环境变量读取敏感配置
+            // 这些值由Node.js服务器从.env文件读取并注入
+            const ENV_CONFIG = {
+                appId: window.ENV_CONFIG?.AGORA_APP_ID || '',
+                clientId: window.ENV_CONFIG?.AGORA_CLIENT_ID || '',
+                clientSecret: window.ENV_CONFIG?.AGORA_CLIENT_SECRET || ''
+            };
+            
+            // 检查环境变量是否已正确加载
+            function checkEnvConfig() {
+                if (!ENV_CONFIG.appId || !ENV_CONFIG.clientId || !ENV_CONFIG.clientSecret) {
+                    logError('环境变量未正确加载，请检查.env文件配置');
+                    $('#createAgentBtn').prop('disabled', true);
+                    return false;
+                }
+                logDebug('环境变量加载成功');
+                return true;
+            }
+            
+            // 获取表单数据并保存到config对象
+            function saveConfig(showToastMessage = false) {
+                const ttsVendor = $('#ttsVendor').val();
+                let ttsConfig = {};
+                
+                if (ttsVendor === 'bytedance') {
+                    // 火山引擎配置
+                    ttsConfig = {
+                        vendor: 'bytedance',
+                        params: {
+                            token: $('#ttsToken').val(),
+                            app_id: $('#ttsAppId').val(),
+                            cluster: $('#ttsCluster').val(),
+                            voice_type: $('#ttsVoiceType').val(),
+                            speed_ratio: $('#ttsSpeedRatio').val(),
+                            volume_ratio: $('#ttsVolumeRatio').val(),
+                            pitch_ratio: $('#ttsPitchRatio').val(),
+                            emotion: ""
+                        }
+                    };
+                } else if (ttsVendor === 'tencent') {
+                    // 腾讯云配置
+                    ttsConfig = {
+                        vendor: 'tencent',
+                        params: {
+                            app_id: $('#ttsTencentAppId').val(),
+                            secret_id: $('#ttsTencentSecretId').val(),
+                            secret_key: $('#ttsTencentSecretKey').val(),
+                            voice_type: parseInt($('#ttsTencentVoiceType').val()),
+                            speed: parseFloat($('#ttsTencentSpeed').val()),
+                            volume: parseInt($('#ttsTencentVolume').val()),
+                            emotion_category: $('#ttsTencentEmotionCategory').val(),
+                            emotion_intensity: parseInt($('#ttsTencentEmotionIntensity').val())
+                        }
+                    };
+                }
+                
+                // 校验Token获取方式
+                const tokenType = $('input[name="agoraTokenType"]:checked').val();
+                let agoraToken = '';
+                let agoraTokenUrl = '';
+                let channelName = '';
+                
+                if (showToastMessage) {
+                    // 校验Token相关字段
+                    if (tokenType === 'temp') {
+                        agoraToken = $('#agoraToken').val().trim();
+                        channelName = $('#channelName').val().trim();
+                        if (!agoraToken) {
+                            showToast('请填写临时Token！', 'error');
+                            return;
+                        }
+                        if (!channelName) {
+                            showToast('请填写频道名称！', 'error');
+                            return;
+                        }
+                    } else {
+                        agoraTokenUrl = $('#agoraTokenUrl').val().trim();
+                        if (!agoraTokenUrl) {
+                            showToast('请填写Token获取地址！', 'error');
+                            return;
+                        }
+                    }
+                    
+                    // 校验LLM必填字段
+                    const llmUrl = $('#llmUrl').val().trim();
+                    const llmApiKey = $('#llmApiKey').val().trim();
+                    const llmModel = $('#llmModel').val().trim();
+                    
+                    if (!llmUrl) {
+                        showToast('请填写LLM API地址！', 'error');
+                        return;
+                    }
+                    if (!llmApiKey) {
+                        showToast('请填写LLM API密钥！', 'error');
+                        return;
+                    }
+                    if (!llmModel) {
+                        showToast('请填写LLM模型名称！', 'error');
+                        return;
+                    }
+                    
+                    // 校验TTS必填字段
+                    const ttsVendor = $('#ttsVendor').val();
+                    if (ttsVendor === 'bytedance') {
+                        const ttsToken = $('#ttsToken').val().trim();
+                        const ttsAppId = $('#ttsAppId').val().trim();
+                        
+                        if (!ttsToken) {
+                            showToast('请填写火山引擎Token！', 'error');
+                            return;
+                        }
+                        if (!ttsAppId) {
+                            showToast('请填写火山引擎应用ID！', 'error');
+                            return;
+                        }
+                    } else if (ttsVendor === 'tencent') {
+                        const ttsTencentAppId = $('#ttsTencentAppId').val().trim();
+                        const ttsTencentSecretId = $('#ttsTencentSecretId').val().trim();
+                        const ttsTencentSecretKey = $('#ttsTencentSecretKey').val().trim();
+                        
+                        if (!ttsTencentAppId) {
+                            showToast('请填写腾讯云应用ID！', 'error');
+                            return;
+                        }
+                        if (!ttsTencentSecretId) {
+                            showToast('请填写腾讯云SecretId！', 'error');
+                            return;
+                        }
+                        if (!ttsTencentSecretKey) {
+                            showToast('请填写腾讯云SecretKey！', 'error');
+                            return;
+                        }
+                    }
+                } else {
+                    // 初始化时不校验
+                    agoraToken = $('#agoraToken').val().trim();
+                    agoraTokenUrl = $('#agoraTokenUrl').val().trim();
+                    channelName = $('#channelName').val().trim();
+                }
+                
+                config = {
+                    appId: ENV_CONFIG.appId,
+                    clientId: ENV_CONFIG.clientId,
+                    clientSecret: ENV_CONFIG.clientSecret,
+                    agentRtcUid: $('#agentRtcUid').val(),
+                    agoraTokenType: tokenType,
+                    agoraToken: agoraToken,
+                    agoraTokenUrl: agoraTokenUrl,
+                    channelName: channelName, // 添加频道名称到配置
+                    // LLM配置
+                    llm: {
+                        url: $('#llmUrl').val(),
+                        api_key: $('#llmApiKey').val(),
+                        model: $('#llmModel').val(),
+                        prompt: $('#llmPrompt').val(),
+                        greeting_message: $('#llmGreeting').val(),
+                        max_token: parseInt($('#llmMaxToken').val())
+                    },
+                    // VAD配置
+                    vad: {
+                        interrupt_duration_ms: parseInt($('#vadInterruptDuration').val()),
+                        prefix_padding_ms: parseInt($('#vadPrefixPadding').val()),
+                        silence_duration_ms: parseInt($('#vadSilenceDuration').val()),
+                        threshold: parseFloat($('#vadThreshold').val()),
+                        enable_aivad: $('#vadEnableAivad').is(':checked')
+                    },
+                    // TTS配置
+                    tts: ttsConfig
+                };
+                logDebug('配置已保存');
+                
+                // 只有在明确要求时才显示保存成功提示
+                if (showToastMessage) {
+                    showToast('配置保存成功！', 'success');
+                }
+                
+                return config;
+            }
+
+            // 生成Basic认证头
+            function generateBasicAuth(clientId, clientSecret) {
+                if (!clientId || !clientSecret) {
+                    logError('客户ID或客户密钥为空，无法生成认证信息');
+                    return '';
+                }
+                
+                // 创建Base64编码的认证字符串
+                const authString = btoa(clientId + ':' + clientSecret);
+                return 'Basic ' + authString;
+            }
+
+            // 生成随机频道名
+            function generateRandomChannelName() {
+                const prefix = "convaiconsole_";
+                const randomNum = Math.floor(Math.random() * 1000000);
+                return prefix + randomNum;
+            }
+
+            // 获取RTC Token（优先使用用户输入的Token，否则从后端获取）
+            async function getRtcToken(channelName) {
+                const tokenType = $('input[name="agoraTokenType"]:checked').val();
+                if (tokenType === 'temp') {
+                    const userToken = $('#agoraToken').val().trim();
+                    logDebug(`使用用户输入的Token: ${userToken.substring(0, 20)}...`);
+                    return userToken;
+                    } else {
+                    const tokenUrl = $('#agoraTokenUrl').val().trim() || 'http://localhost:8081/rtcToken';
+                    try {
+                        logDebug('从后端获取RTC Token...');
+                    const response = await $.ajax({
+                            url: `${tokenUrl}?channelName=${channelName}`,
+                        type: 'GET'
+                    });
+                    if (response && response.key) {
+                            const token = response.key;
+                            logDebug(`成功获取RTC Token: ${token.substring(0, 20)}...`);
+                            return token;
+                    } else {
+                            throw new Error('后端返回的数据中没有token');
+                    }
+                } catch (error) {
+                        logError(`获取RTC Token失败: ${error}`);
+                        throw error;
+                    }
+                }
+            }
+            
+            // 创建智能体
+            async function createAgent() {
+                logDebug('创建智能体...');
+                $('#createAgentBtn').prop('disabled', true);
+                    
+                // 保存当前配置
+                saveConfig();
+                    
+                let newChannelName = '';
+                const tokenType = $('input[name="agoraTokenType"]:checked').val();
+                if (tokenType === 'temp') {
+                    newChannelName = $('#channelName').val().trim();
+                } else {
+                    newChannelName = generateRandomChannelName();
+                    $('#channelName').val(newChannelName);
+                }
+                logDebug(`为智能体使用频道: ${newChannelName}`);
+                config.channelName = newChannelName;
+                
+                try {
+                    // 从后端获取RTC Token
+                    const token = await getRtcToken(newChannelName);
+                    config.token = token;
+                    
+                    let apiUrl = `/api/agora/api/conversational-ai-agent/v2/projects/${config.appId}/join`;
+                
+                    // 构建请求体
+                const requestBody = {
+                        name: config.channelName,
+                    properties: {
+                            channel: config.channelName,
+                            token: config.token,
+                        agent_rtc_uid: config.agentRtcUid,
+                        remote_rtc_uids: ["*"],
+                        enable_string_uid: true,
+                            idle_timeout: 30,
+                            join_rtc_channel: true,
+                            rtc_channel: config.channelName,
+                            rtc_token: config.token,
+                        llm: {
+                            url: config.llm.url,
+                            api_key: config.llm.api_key,
+                            max_history: 100,
+                            system_messages: [
+                                {
+                                    role: "system",
+                                    content: config.llm.prompt
+                                }
+                            ],
+                            params: {
+                                model: config.llm.model,
+                                max_token: config.llm.max_token
+                            },
+                            greeting_message: config.llm.greeting_message,
+                            failure_message: "对不起，我出错了"
+                        },
+                        asr: {
+                            language: "zh-CN"
+                        },
+                        vad: {
+                            interrupt_duration_ms: config.vad.interrupt_duration_ms,
+                            prefix_padding_ms: config.vad.prefix_padding_ms,
+                            silence_duration_ms: config.vad.silence_duration_ms,
+                            threshold: config.vad.threshold
+                        },
+                        tts: config.tts,
+                        parameters: {
+                            transcript: {
+                                enable: true,
+                                protocol_version: "v2",
+                                enable_words: false,
+                                redundant: false
+                            },
+                            enable_metrics: true,
+                            audio_scenario: "default"
+                        },
+                        advanced_features: {
+                            enable_aivad: config.vad.enable_aivad
+                        }
+                    }
+                };
+
+                // 显示请求数据
+                $('#requestContent').text(JSON.stringify(requestBody, null, 2));
+                
+                    const response = await $.ajax({
+                    url: apiUrl,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'Authorization': generateBasicAuth(config.clientId, config.clientSecret)
+                    },
+                        data: JSON.stringify(requestBody)
+                    });
+                    
+                        logDebug('API响应成功');
+                        $('#responseContent').text(JSON.stringify(response, null, 2));
+                        
+                        if (response.agent_id) {
+                            agentId = response.agent_id;
+                            logDebug(`智能体创建成功，ID: ${agentId}`);
+                            $('#agentId').text(agentId);
+                            updateAgentStatus(true);
+                        return agentId;
+                        } else {
+                            logError('创建智能体失败: 响应中没有agent_id');
+                        $('#createAgentBtn').prop('disabled', false);
+                        return null;
+                        }
+                } catch (error) {
+                        logError(`创建智能体请求失败: ${error}`);
+                    
+                    if (error.status === 401) {
+                            logError('认证失败(401)：请检查Token是否正确或已过期');
+                        }
+                        
+                    let errorResponse;
+                    try {
+                        errorResponse = error.responseText ? JSON.parse(error.responseText) : {};
+                    } catch (e) {
+                        errorResponse = { error: "解析错误响应失败" };
+                    }
+                        
+                        // 处理任务冲突错误
+                        if (errorResponse.reason === "TaskConflict" && errorResponse.agent_id) {
+                            logDebug(`检测到智能体已存在，ID: ${errorResponse.agent_id}`);
+                            agentId = errorResponse.agent_id;
+                            $('#agentId').text(agentId);
+                            updateAgentStatus(true);
+                            logDebug('已自动使用现有智能体');
+                        return agentId;
+                        }
+                        
+                    logError(`详细错误信息: ${error.responseText || '无详细错误信息'}`);
+                    $('#responseContent').text(error.responseText || '无响应数据');
+                    $('#createAgentBtn').prop('disabled', false);
+                    return null;
+                }
+            }
+            
+            // 停止智能体
+            async function stopAgent() {
+                if (!agentId) {
+                    logError('智能体ID为空，无法停止');
+                    return;
+                }
+                
+                logDebug(`停止智能体: ${agentId}`);
+                $('#stopAgentBtn').prop('disabled', true);
+                
+                let apiUrl = `/api/agora/api/conversational-ai-agent/v2/projects/${config.appId}/agents/${agentId}/leave`;
+                
+                // 显示请求数据
+                $('#requestContent').text('POST ' + apiUrl);
+                
+                try {
+                    const response = await $.ajax({
+                    url: apiUrl,
+                    type: 'POST',
+                    headers: {
+                        'Authorization': generateBasicAuth(config.clientId, config.clientSecret)
+                        }
+                    });
+                    
+                        logDebug('停止智能体成功');
+                        $('#responseContent').text(JSON.stringify(response, null, 2));
+                        updateAgentStatus(false);
+                } catch (error) {
+                        logError(`停止智能体请求失败: ${error}`);
+                    $('#responseContent').text(error.responseText || '无响应数据');
+                        $('#stopAgentBtn').prop('disabled', false);
+                    }
+            }
+            
+            // 更新智能体状态UI
+            function updateAgentStatus(isActive) {
+                if (isActive) {
+                    $('#agentStatusIndicator').removeClass('status-inactive').addClass('status-active');
+                    $('#agentStatusText').text('活跃');
+                    $('#createAgentBtn').prop('disabled', true);
+                    $('#stopAgentBtn').prop('disabled', false);
+                    $('#startAudioBtn').prop('disabled', false);
+                    
+                    // 自动初始化RTC客户端
+                    initializeRtcClient();
+                } else {
+                    $('#agentStatusIndicator').removeClass('status-active').addClass('status-inactive');
+                    $('#agentStatusText').text('非活跃');
+                        $('#createAgentBtn').prop('disabled', false);
+                        $('#stopAgentBtn').prop('disabled', true);
+                    $('#startAudioBtn').prop('disabled', true);
+                    $('#stopAudioBtn').prop('disabled', true);
+                }
+            }
+            
+            // 添加调试日志
+            function logDebug(message) {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString();
+                $('#debugPanel').append(`<div class="text-info">[${timeStr}] ${message}</div>`);
+                scrollDebugToBottom();
+            }
+            
+            // 添加错误日志
+            function logError(message) {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString();
+                $('#debugPanel').append(`<div class="text-danger">[${timeStr}] ${message}</div>`);
+                scrollDebugToBottom();
+            }
+            
+            // 滚动调试面板到底部
+            function scrollDebugToBottom() {
+                const debugPanel = document.getElementById('debugPanel');
+                debugPanel.scrollTop = debugPanel.scrollHeight;
+            }
+            
+            // ===== 音频交互相关代码 =====
+            let rtcClient = null;
+            let localAudioTrack = null;
+            let remoteAudioTrack = null;
+            let isJoined = false;
+            
+            // 初始化RTC客户端
+            async function initializeRtcClient() {
+                try {
+                    logDebug('初始化RTC客户端...');
+                    
+                    // 创建RTC客户端实例
+                    rtcClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+                    
+                    // 注册事件处理程序
+                    rtcClient.on("user-published", handleUserPublished);
+                    rtcClient.on("user-unpublished", handleUserUnpublished);
+                    
+                    logDebug('RTC客户端初始化成功');
+                    return true;
+                } catch (error) {
+                    logError(`RTC客户端初始化失败: ${error.message}`);
+                    return false;
+                }
+            }
+            
+            // 开始音频对话
+            async function startAudioInteraction() {
+                try {
+                    if (!agentId) {
+                        logError('请先创建智能体');
+                        return;
+                    }
+                    
+                    if (!config.token) {
+                        logError('Token未设置，请先创建智能体');
+                        return;
+                    }
+                    
+                    logDebug(`音频对话使用频道: ${config.channelName}`);
+                    logDebug(`音频对话使用Token: ${config.token.substring(0, 20)}...`);
+                    
+                    if (rtcClient === null) {
+                        if (!await initializeRtcClient()) {
+                            return;
+                        }
+                    }
+                    
+                    logDebug('加入RTC频道...');
+                    $('#startAudioBtn').prop('disabled', true);
+                    
+                    // 创建本地音频轨道
+                    localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    
+                    // 获取随机uid
+                    const uid = Math.floor(Math.random() * 100000);
+                    
+                    // 加入频道
+                    await rtcClient.join(config.appId, config.channelName, config.token, uid);
+                    isJoined = true;
+                    
+                    // 发布本地音频轨道
+                    await rtcClient.publish([localAudioTrack]);
+                    
+                    // 启动音量监测
+                    startVolumeDetection();
+                    
+                    // 更新UI状态
+                    $('#audioStatusText').text('对话中');
+                    $('#audioStatusIndicator').removeClass('status-inactive').addClass('status-active');
+                    $('#startAudioBtn').prop('disabled', true);
+                    $('#stopAudioBtn').prop('disabled', false);
+                    
+                    logDebug('音频对话已开始');
+                } catch (error) {
+                    logError(`开始音频对话失败: ${error.message}`);
+                    if (localAudioTrack) {
+                        localAudioTrack.close();
+                        localAudioTrack = null;
+                    }
+                    
+                    if (isJoined) {
+                        try {
+                            await rtcClient.leave();
+                            isJoined = false;
+                        } catch (e) {
+                            logError(`离开频道失败: ${e.message}`);
+                        }
+                    }
+                    
+                    $('#startAudioBtn').prop('disabled', false);
+                }
+            }
+            
+            // 结束音频对话
+            async function stopAudioInteraction() {
+                try {
+                    logDebug('结束音频对话...');
+                    $('#stopAudioBtn').prop('disabled', true);
+                    
+                    // 停止音量监测
+                    stopVolumeDetection();
+                    
+                    // 关闭本地音频轨道
+                    if (localAudioTrack) {
+                        localAudioTrack.close();
+                        localAudioTrack = null;
+                    }
+                    
+                    // 离开频道
+                    if (rtcClient && isJoined) {
+                        await rtcClient.leave();
+                        isJoined = false;
+                    }
+                    
+                    // 更新UI状态
+                    $('#audioStatusText').text('已断开');
+                    $('#audioStatusIndicator').removeClass('status-active').addClass('status-inactive');
+                    $('#startAudioBtn').prop('disabled', false);
+                    $('#stopAudioBtn').prop('disabled', true);
+                    
+                    logDebug('音频对话已结束');
+                } catch (error) {
+                    logError(`结束音频对话失败: ${error.message}`);
+                    $('#stopAudioBtn').prop('disabled', false);
+                }
+            }
+            
+            // 处理远程用户发布的媒体流
+            async function handleUserPublished(user, mediaType) {
+                logDebug(`远程用户 ${user.uid} 发布了 ${mediaType} 流`);
+                
+                // 订阅远程用户的音频流
+                if (mediaType === 'audio') {
+                    remoteAudioTrack = await rtcClient.subscribe(user, mediaType);
+                    remoteAudioTrack.play();
+                    logDebug(`已订阅并播放远程用户 ${user.uid} 的音频`);
+                }
+            }
+            
+            // 处理远程用户取消发布的媒体流
+            function handleUserUnpublished(user, mediaType) {
+                logDebug(`远程用户 ${user.uid} 取消发布了 ${mediaType} 流`);
+                if (mediaType === 'audio') {
+                    remoteAudioTrack = null;
+                }
+            }
+            
+            // 音量监测
+            let volumeDetectionInterval = null;
+            
+            function startVolumeDetection() {
+                if (localAudioTrack) {
+                    volumeDetectionInterval = setInterval(() => {
+                        const volume = localAudioTrack.getVolumeLevel() * 100;
+                        $('#volumeIndicator').css('width', `${volume}%`);
+                    }, 100);
+                }
+            }
+            
+            function stopVolumeDetection() {
+                if (volumeDetectionInterval) {
+                    clearInterval(volumeDetectionInterval);
+                    volumeDetectionInterval = null;
+                    $('#volumeIndicator').css('width', '0%');
+                }
+            }
+            
+            // TTS服务商切换处理
+            function handleTtsVendorChange() {
+                const vendor = $('#ttsVendor').val();
+                if (vendor === 'bytedance') {
+                    $('#ttsBytedanceConfig').show();
+                    $('#ttsTencentConfig').hide();
+                } else if (vendor === 'tencent') {
+                    $('#ttsBytedanceConfig').hide();
+                    $('#ttsTencentConfig').show();
+                }
+            }
+            
+            // 绑定Token获取方式切换事件
+            $('#agoraTokenTypeTemp').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#agoraTokenInputBox').show();
+                    $('#agoraChannelNameBox').show(); // 显示频道名称输入框
+                    $('#agoraTokenUrlBox').hide();
+                } else {
+                    $('#agoraChannelNameBox').hide(); // 隐藏频道名称输入框
+                }
+            });
+            $('#agoraTokenTypeApi').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#agoraTokenInputBox').hide();
+                    $('#agoraChannelNameBox').hide(); // 隐藏频道名称输入框
+                    $('#agoraTokenUrlBox').show();
+                }
+            });
+            
+            // 调整布局
+            function adjustLayout() {
+                const debugSection = $('#debugSection');
+                const mainContent = $('#mainContent');
+                
+                if (debugSection.is(':visible')) {
+                    // 有调试窗口时，使用双列布局
+                    mainContent.removeClass('col-md-8 col-lg-6').addClass('col-md-6');
+                } else {
+                    // 没有调试窗口时，主内容居中
+                    mainContent.removeClass('col-md-6').addClass('col-md-8 col-lg-6');
+                }
+            }
+            
+            // 切换调试窗口显示
+            function toggleDebugSection() {
+                const debugSection = $('#debugSection');
+                debugSection.toggle();
+                adjustLayout();
+            }
+            
+            // 显示Toast提示
+            function showToast(message, type = 'info') {
+                // 创建Toast容器（如果不存在）
+                let toastContainer = $('#toastContainer');
+                if (toastContainer.length === 0) {
+                    $('body').append('<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>');
+                    toastContainer = $('#toastContainer');
+                }
+                
+                // 根据类型设置样式
+                let bgClass = 'bg-info';
+                let icon = 'ℹ️';
+                if (type === 'success') {
+                    bgClass = 'bg-success';
+                    icon = '✅';
+                } else if (type === 'error') {
+                    bgClass = 'bg-danger';
+                    icon = '❌';
+                } else if (type === 'warning') {
+                    bgClass = 'bg-warning';
+                    icon = '⚠️';
+                }
+                
+                // 创建Toast元素
+                const toastId = 'toast_' + Date.now();
+                const toastHtml = `
+                    <div id="${toastId}" class="toast show ${bgClass} text-white" role="alert" style="min-width: 250px;">
+                        <div class="toast-body d-flex align-items-center">
+                            <span class="me-2">${icon}</span>
+                            <span>${message}</span>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加到容器
+                toastContainer.append(toastHtml);
+                
+                // 3秒后自动移除
+                setTimeout(() => {
+                    $(`#${toastId}`).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                }, 3000);
+            }
+            
+            // 初始化
+            function init() {
+                // 检查环境变量配置
+                if (!checkEnvConfig()) {
+                    return;
+                }
+                
+                // 保存初始配置（不显示提示）
+                saveConfig(false);
+                
+                                // 绑定按钮事件
+                $('#createAgentBtn').click(createAgent);
+                $('#stopAgentBtn').click(stopAgent);
+            $('#startAudioBtn').click(startAudioInteraction);
+            $('#stopAudioBtn').click(stopAudioInteraction);
+                $('#saveConfigBtn').click(function() {
+                    saveConfig(true); // 显示保存成功提示
+                });
+                
+                // 绑定TTS服务商切换事件
+                $('#ttsVendor').change(handleTtsVendorChange);
+                
+                // 绑定Token获取方式切换事件
+                $('#agoraTokenTypeTemp').change(function() {
+                    if ($(this).is(':checked')) {
+                        $('#agoraTokenInputBox').show();
+                        $('#agoraChannelNameBox').show(); // 显示频道名称输入框
+                        $('#agoraTokenUrlBox').hide();
+                    } else {
+                        $('#agoraChannelNameBox').hide(); // 隐藏频道名称输入框
+                    }
+                });
+                $('#agoraTokenTypeApi').change(function() {
+                    if ($(this).is(':checked')) {
+                        $('#agoraTokenInputBox').hide();
+                        $('#agoraChannelNameBox').hide(); // 隐藏频道名称输入框
+                        $('#agoraTokenUrlBox').show();
+                    }
+                });
+                
+                // 初始化TTS配置显示
+                handleTtsVendorChange();
+                
+                // 调整布局
+                adjustLayout();
+                
+                // 初始化所有tooltip
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                
+                logDebug('页面加载完成');
+                updateAgentStatus(false);
+            }
+            
+            // 初始化应用
+            init();
+            
+            // 将日志函数暴露到全局，方便控制台调试
+            window.logDebug = logDebug;
+            window.logError = logError;
+            window.toggleDebugSection = toggleDebugSection;
+            window.showToast = showToast;
+        });
+    </script>
+</body>
+</html>
