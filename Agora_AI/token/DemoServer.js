@@ -7,8 +7,8 @@ var {RtcTokenBuilder, RtmTokenBuilder, RtcRole, RtmRole} = require('agora-access
 var PORT = 8081;
 require('dotenv').config(); // 加载.env文件
 // Fill the appID and appCertificate key given by Agora.io
-var appID = process.env.AGORA_APP_ID;
-var appCertificate = process.env.AGORA_APP_CERTIFICATE;
+var appID = process.env.APP_ID;
+var appCertificate = process.env.APP_CERTIFICATE;
 
 // token expire time, hardcode to 3600 seconds = 1 hour
 var expirationTimeInSeconds = 3600
